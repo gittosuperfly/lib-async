@@ -1,6 +1,8 @@
 package cai.lib.async
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Scheduler
@@ -9,6 +11,8 @@ import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicBoolean
 
 object Async {
+
+    private lateinit var mainHandler: Handler
 
     private lateinit var threadPoolExecutor: ExecutorService
     private lateinit var cacheExecutor: ExecutorService
@@ -29,6 +33,7 @@ object Async {
             logger.warn("Async already initialized.")
             return
         }
+        mainHandler = Handler(Looper.getMainLooper())
         deviceLevel = Level.getLevel(context)
         threadPoolExecutor = AsyncExecutorFactory.createRunnerExecutor(deviceLevel)
         cacheExecutor = AsyncExecutorFactory.createCacheExecutor()
@@ -59,6 +64,28 @@ object Async {
         return Observable.fromCallable(callable)
             .subscribeOn(scheduler)
             .observeOn(AndroidSchedulers.mainThread())
+    }
+
+    @JvmStatic
+    fun runOnMain(runnable: Runnable) {
+        checkIsInit()
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            runnable.run()
+        } else {
+            mainHandler.post(runnable)
+        }
+    }
+
+    @JvmStatic
+    fun runOnMainDelay(runnable: Runnable, delay: Long) {
+        checkIsInit()
+        mainHandler.postDelayed(runnable, delay)
+    }
+
+    @JvmStatic
+    fun removeMainHandlerRunnable(runnable: Runnable) {
+        checkIsInit()
+        mainHandler.removeCallbacks(runnable)
     }
 
     @JvmStatic
